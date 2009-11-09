@@ -1,0 +1,68 @@
+idp_proxy:
+   
+typical usage is to work with nginx cache protected files. Your background app respond to check if a user has the proper rights/permissions to access some certain files, and return a X-Accel-Redirect header tell nginx to serve the file. If a file is found in the local storage, then nginx serve it directly, or fetch from a Amazon S3 bucket and cached locally. Then you may want another cron like job to delete old files in the local storage.
+
+                                           
+1) turn on sendfile on nginx conf:
+	sendfile on;
+	
+2) make you app send the sendfile header:
+
+php:
+header("X-Accel-Redirect: /file-internal/filename.jpg");
+                                                     
+Ruby/Rails:
+head(:x_accel_redirect => "/file-internal/filename.jpg",
+      :content_disposition => "#{disposition}; filename=\"real_filename.jpg\"")
+
+3) config Nginx for internal access only:
+
+location /file-internal {
+        internal;
+        alias                /tmp/idp_proxy;
+
+        proxy_set_header  X-Real-IP  $remote_addr;
+        proxy_set_header  X-Uri $uri;
+
+		# you don't need to turn on proxy store since  idp_proxy will do this for you
+        # proxy_store          on;
+        # proxy_store_access   user:rw  group:rw  all:r;
+        # proxy_temp_path      /tmp/nginx_temp;
+
+        proxy_set_header  X-debug1  $request_filename;
+        proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        if (!-f $request_filename) {
+                proxy_pass http://127.0.0.1:8910;
+        }
+}
+
+4) idp_proxy use [s3sync](http://s3sync.net/wiki) to fetch files from s3, you need to put it somewhere and make sure idp_proxy can find it. Also you may need proper s3config.yml in place(see README in s3sync)
+
+4) start idp_proxy
+
+cd idp_proxy
+
+edit idp_proxy.hrl 
+
+INTERNAL_PATH: relative path will be removed from the url and concatenate with DOC_ROOT to get the local path
+TMP_PATH: temp path to store files dowloading from S3
+DOC_ROOT: should meet the alias in the nginx conf, or can be anywhere if you turn on proxy_store
+
+5) the code based on [mochiweb](http://code.google.com/p/mochiweb/), so get it and put in deps dir and remove the original mochiweb symlink.
+
+cd deps/mochiweb
+make            
+cd ../..
+make
+./start-dev.sh
+
+
+6) now open another terminal window and run test/test.sh
+
+
+TODO:
+
+1) Fetch S3 from erlang without s3cmd.rb
+2) serve immediately to nginx in chunk without waiting for the complete for s3 download
+3) ...
