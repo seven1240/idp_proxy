@@ -8,7 +8,9 @@
 
 -behaviour(supervisor).
   
--include("idp_proxy.hrl").
+-include("idp_proxy.hrl").   
+-include("../deps/s3erl/include/s3.hrl").
+
 
 %% External exports
 -export([start_link/0, upgrade/0]).
@@ -55,6 +57,12 @@ init([]) ->
 
 	case filelib:is_dir(?DOC_ROOT) of false -> file:make_dir(?DOC_ROOT); true -> ok end,
 	case filelib:is_dir(?TMP_PATH) of false -> file:make_dir(?TMP_PATH); true -> ok end, 
-
-    Processes = [Web],
+    
+	S3Credentials = #aws_credentials{ accessKeyId=?S3AKI, secretAccessKey=?S3SAK },
+	
+	S3 = {s3,{s3, start, [S3Credentials]}, permanent, 5000, worker, dynamic},
+	IBrowse = {ibrowse,{ibrowse, start, []}, permanent, 5000, worker, dynamic},
+	StreamServer = {stream_server,{stream_server, start, []}, permanent, 5000, worker, dynamic},
+	
+    Processes = [Web,S3,IBrowse],
     {ok, {{one_for_one, 10, 10}, Processes}}.

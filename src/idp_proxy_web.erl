@@ -8,11 +8,14 @@
 
 -export([start/1, stop/0, rest_response/1]).   
 
--include("idp_proxy.hrl").
+-include("idp_proxy.hrl").   
 
-%% External API
+	
+%% External API                   
+
 
 start(Options) ->
+                                                                   
     {_DocRoot, Options1} = get_option(docroot, Options),
     Loop = fun (Req) ->
                    ?MODULE:rest_response(Req)
@@ -66,38 +69,15 @@ serve_file(Req, Path) ->
 		
 fetch_from_s3_and_serve(Req, Path) ->
 
-	S3Key = ?S3PREFIX ++ Path,	
+	"/" ++ RPath = Path,
+
+	S3Key = ?S3PREFIX ++ RPath,	
 	S3Url = ?S3BUCKET ++ ":" ++ S3Key,
 	io:format("S3Url: ~p~n", [S3Url]),
-	Result = os:cmd(?S3CMD ++ " list " ++ S3Url),
-	io:format("~p~n", [Result]),
 	
-	Return = binary_to_list(<<10>>),
-	FileExistsPattern = "--------------------" ++ Return ++ S3Key ++ Return,
-	
-	case Result of
-		"--------------------" ++ Return ->
-			Req:not_found();
-		 FileExistsPattern ->
-			TmpFile = ?TMP_PATH ++ "/" ++ get_uniq_name(self()) ++ "_" ++ filename:basename(Path),
-			case filelib:is_file(TmpFile) of true ->
-				io:format("Wanning: delete file before download ~p~n", [TmpFile]),
-				file:delete(TmpFile);
-				false -> ok
-			end,
-			Cmd = ?S3CMD ++ " get " ++ S3Url ++ " " ++ TmpFile,
-			io:format("Fetch from S3: ~p ~n", [Cmd]),			
-			os:cmd(Cmd),
-	
-			"/" ++ RPath = Path,
-			LocalPath = filename:absname_join(?DOC_ROOT, RPath),
-			case filelib:is_dir(LocalPath) of
-				false -> os:cmd("mkdir -p " ++ filename:dirname(LocalPath));
-				true -> ok
-			end,
-			io:format("More file to the right place: ~p~n", ["mv " ++ TmpFile ++ " " ++ LocalPath]),
-			os:cmd("mv " ++ TmpFile ++ " " ++ LocalPath),
-			Req:serve_file(RPath, ?DOC_ROOT);
+	case s3:has_key(?S3BUCKET, S3Key) of
+		true ->			
+			gen_server:cast(stream_server, {download, ?S3BUCKET, S3Key, Req});
 		_ -> Req:not_found()
 	end.
 	
@@ -109,7 +89,4 @@ get_local_path("/" ++ Path) ->
 
 get_option(Option, Options) ->
     {proplists:get_value(Option, Options), proplists:delete(Option, Options)}.
-
-get_uniq_name(Pid) ->
-	string:strip(string:strip(pid_to_list(Pid), right, $>), left, $<).
 
