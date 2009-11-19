@@ -62,7 +62,7 @@ init([]) ->
 	
 	S3 = {s3,{s3, start, [S3Credentials]}, permanent, 5000, worker, dynamic},
 	IBrowse = {ibrowse,{ibrowse, start, []}, permanent, 5000, worker, dynamic},
-	StreamServer = {stream_server,{stream_server, start, []}, permanent, 5000, worker, dynamic},
+	StreamServer = {stream_server,{stream_server, start, [dfdsf]}, permanent, 5000, worker, dynamic},
 	
-    Processes = [Web,S3,IBrowse],
+    Processes = [Web,S3,IBrowse, StreamServer],
     {ok, {{one_for_one, 10, 10}, Processes}}.
