@@ -64,5 +64,5 @@ init([]) ->
 	IBrowse = {ibrowse,{ibrowse, start, []}, permanent, 5000, worker, dynamic},
 	StreamServer = {stream_server,{stream_server, start, [dfdsf]}, permanent, 5000, worker, dynamic},
 	
-    Processes = [Web,S3,IBrowse, StreamServer],
+    Processes = [Web,S3,IBrowse],
     {ok, {{one_for_one, 10, 10}, Processes}}.

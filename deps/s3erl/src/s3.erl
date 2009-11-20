@@ -217,7 +217,7 @@ streamRequest( From, AwsCredentials, Bucket, Key, Options ) ->
     
 	{Pid, _} = From,
 	Options1 = case proplists:get_value(stream_to, Options) of
-		undefined -> [{stream_to, Pid}, {stream_chunk_size, 4096} | Options];
+		undefined -> [{stream_to, Pid}, {stream_chunk_size, 8192} | Options];
 		_ -> Options
 	end,                                      
 	                                                  
